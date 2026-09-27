@@ -1,0 +1,22 @@
+# Project-level profile used by CI and by anyone cloning this repo.
+# dbt checks the project directory before ~/.dbt/, so a local profiles.yml
+# with the same target name takes precedence for local development.
+#
+# No credentials here: DuckDB is a local file, so there is nothing secret.
+# Against Snowflake or Redshift these values would come from environment
+# variables, e.g. password: "{{ env_var('DBT_PASSWORD') }}".
+
+ecommerce:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../../ecommerce.duckdb
+      schema: dev
+      threads: 4
+
+    prod:
+      type: duckdb
+      path: ../../ecommerce.duckdb
+      schema: prod
+      threads: 8
