@@ -88,7 +88,9 @@ for i in range(N_ORDERS):
         ))
 
     reviews.append((
-        f"rev_{i:06d}", oid, random.randint(1, 5), "", "",
+        f"rev_{i:06d}", oid, random.randint(1, 5),
+        random.choice(["", "Bom", "Recomendo", "Otimo produto"]),
+        random.choice(["", "Entrega rapida", "Produto conforme descrito"]),
         purchased.strftime("%Y-%m-%d %H:%M:%S"),
         (purchased + timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S"),
     ))
