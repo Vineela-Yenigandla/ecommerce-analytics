@@ -80,3 +80,44 @@ models:
           - dbt_utils.accepted_range:
               min_value: 0
               inclusive: true
+
+  - name: dim_customers
+    description: >
+      SCD Type 2. Grain is one row per customer VERSION, not per customer.
+      Filter is_current for the present-day view; join on valid_from/valid_to
+      for point-in-time accuracy.
+    columns:
+      - name: customer_key
+        description: Surrogate key built from customer_unique_id + valid_from.
+        tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Natural key. NOT unique - one row per version.
+        tests: [not_null]
+      - name: is_current
+        tests: [not_null]
+
+  - name: dim_products
+    description: One row per product. Grain is product_id.
+    columns:
+      - name: product_key
+        tests: [unique, not_null]
+      - name: product_id
+        tests: [unique, not_null]
+      - name: product_category
+        tests: [not_null]
+
+  - name: dim_sellers
+    description: One row per seller. Grain is seller_id.
+    columns:
+      - name: seller_key
+        tests: [unique, not_null]
+      - name: seller_id
+        tests: [unique, not_null]
+
+  - name: dim_date
+    description: One row per calendar date, 2016-2019.
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+      - name: year
+        tests: [not_null]

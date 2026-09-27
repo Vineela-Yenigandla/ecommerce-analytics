@@ -1,11 +1,26 @@
-{{ config(materialized='table') }}
+{{ config(
+    materialized='incremental',
+    unique_key='order_id',
+    incremental_strategy='delete+insert',
+    on_schema_change='append_new_columns'
+) }}
 
 -- Grain: one row per order.
--- All measures are valid at order level. Item-level measures live in fct_order_items.
+--
+-- Incremental with a 7-day lookback: orders can be updated after purchase
+-- (approval, shipping, delivery), so we reprocess a window rather than only
+-- strictly-new rows. Combined with unique_key this is idempotent -- reruns
+-- update in place instead of duplicating.
 
 with orders as (
 
     select * from {{ ref('stg_orders') }}
+
+    {% if is_incremental() %}
+    where purchased_at >= (
+        select max(purchased_at) - interval 7 day from {{ this }}
+    )
+    {% endif %}
 
 ),
 
@@ -24,18 +39,15 @@ customers as (
 final as (
 
     select
-        -- keys
         o.order_id,
         {{ dbt_utils.generate_surrogate_key(['o.order_id']) }}  as order_key,
         c.customer_unique_id,
         o.customer_id                                           as customer_order_id,
 
-        -- status
         o.order_status,
         o.order_status = 'delivered'                            as is_delivered,
         o.order_status = 'canceled'                             as is_canceled,
 
-        -- dates
         o.purchased_at,
         o.approved_at,
         o.shipped_at,
@@ -43,7 +55,6 @@ final as (
         o.estimated_delivery_at,
         o.purchased_at::date                                    as order_date,
 
-        -- measures
         coalesce(t.item_count, 0)                               as item_count,
         coalesce(t.items_total, 0)                              as items_total,
         coalesce(t.freight_total, 0)                            as freight_total,
@@ -54,8 +65,7 @@ final as (
         t.distinct_seller_count,
         t.review_score,
 
-        -- derived timings
-        date_diff('day', o.purchased_at, o.delivered_at)        as days_to_delivery,
+        date_diff('day', o.purchased_at, o.delivered_at)          as days_to_delivery,
         date_diff('day', o.estimated_delivery_at, o.delivered_at) as delivery_delay_days,
         case
             when o.delivered_at is null then null
