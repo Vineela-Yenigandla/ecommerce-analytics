@@ -1,0 +1,82 @@
+version: 2
+
+models:
+
+  - name: fct_orders
+    description: >
+      One row per order. Grain is order_id.
+      Contains order-level measures only: item counts and totals are rolled up
+      from item grain, payment totals from payment grain. Item-level detail
+      lives in fct_order_items to avoid double-counting.
+    columns:
+      - name: order_key
+        description: Surrogate key.
+        tests: [unique, not_null]
+      - name: order_id
+        description: Natural key from the source system.
+        tests: [unique, not_null]
+      - name: customer_unique_id
+        description: >
+          Identifies the real person. Use this for customer analysis, NOT
+          customer_order_id, which is unique per order.
+        tests: [not_null]
+      - name: order_total
+        description: items_total plus freight_total.
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+      - name: order_status
+        tests: [not_null]
+      - name: order_date
+        tests: [not_null]
+
+  - name: fct_order_items
+    description: >
+      One row per item line within an order. Grain is order_id + order_item_number.
+      Order-level totals are deliberately excluded.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, order_item_number]
+    columns:
+      - name: order_item_key
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_orders')
+              field: order_id
+      - name: item_price
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+      - name: product_category
+        description: English category name. 'Unknown' where no translation exists.
+        tests: [not_null]
+
+  - name: fct_payments
+    description: >
+      One row per payment transaction. Grain is order_id + payment_sequence.
+      An order may have multiple payments across methods or installments.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, payment_sequence]
+    columns:
+      - name: payment_key
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_orders')
+              field: order_id
+      - name: payment_value
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
