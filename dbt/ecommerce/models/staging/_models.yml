@@ -1,0 +1,118 @@
+version: 2
+
+models:
+
+  - name: stg_customers
+    description: >
+      Cleaned customer records. Grain is customer_id, which is unique per
+      ORDER, not per person. Use customer_unique_id to identify a real person.
+    columns:
+      - name: customer_id
+        description: Unique per order. Not a person identifier.
+        tests: [unique, not_null]
+      - name: customer_unique_id
+        description: Identifies the actual person across multiple orders.
+        tests: [not_null]
+      - name: customer_state
+        tests: [not_null]
+
+  - name: stg_orders
+    description: Cleaned orders. Grain is order_id.
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: order_status
+        tests:
+          - accepted_values:
+              values: ['delivered','shipped','canceled','unavailable',
+                       'invoiced','processing','created','approved']
+      - name: purchased_at
+        tests: [not_null]
+
+  - name: stg_order_items
+    description: >
+      One row per item line within an order.
+      Grain is order_id + order_item_number.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, order_item_number]
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: seller_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_sellers')
+              field: seller_id
+      - name: item_price
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              inclusive: true
+
+  - name: stg_order_payments
+    description: One row per payment transaction. Grain is order_id + payment_sequence.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [order_id, payment_sequence]
+    columns:
+      - name: order_id
+        tests: [not_null]
+      - name: payment_type
+        tests:
+          - accepted_values:
+              values: ['credit_card','boleto','voucher','debit_card','not_defined']
+
+  - name: stg_order_reviews
+    description: Customer reviews. Grain is review_id.
+    columns:
+      - name: review_score
+        tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5]
+              quote: false
+
+  - name: stg_products
+    description: Product catalogue. Grain is product_id.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+
+  - name: stg_sellers
+    description: Seller catalogue. Grain is seller_id.
+    columns:
+      - name: seller_id
+        tests: [unique, not_null]
+
+  - name: stg_category_translation
+    description: Portuguese to English category names. Grain is product_category_pt.
+    columns:
+      - name: product_category_pt
+        tests: [unique, not_null]
+
+  - name: stg_geolocation
+    description: >
+      One row per zip prefix. Source has ~1M rows with many coordinates per
+      prefix; deliberately aggregated to one representative point to prevent
+      fan-out on joins.
+    columns:
+      - name: zip_prefix
+        tests: [unique, not_null]
