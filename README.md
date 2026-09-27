@@ -1,6 +1,7 @@
 # E-commerce Analytics Platform
 
 [![dbt CI](https://github.com/Vineela-Yenigandla/ecommerce-analytics/actions/workflows/dbt_ci.yml/badge.svg)](https://github.com/Vineela-Yenigandla/ecommerce-analytics/actions/workflows/dbt_ci.yml)
+
 A production-style analytics engineering project: PySpark ingestion into a dimensional model built with dbt, orchestrated in Airflow and tested in CI.
 
 Built on the [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) — ~100,000 real orders across 9 source tables.
